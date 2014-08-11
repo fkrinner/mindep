@@ -1,0 +1,285 @@
+import os
+import random
+import shutil
+import time
+import sys
+from shutil import copyfile
+import analyzeQstat
+from analyzeQstat import getRunningJobs
+
+#executable='/nfs/hicran/project/compass/analysis/fkrinner/workDir/compassPWAbin_new/bin/pwanew_3pic_compass_2008florian3_dfunc.static'
+executable='/nfs/hicran/project/compass/analysis/fkrinner/workDir/compassPWAbin_big/bin/pwanew_3pic_compass_2008florian3_dfunc.static'
+
+def getRightId(mMin,width,m):					# The calcualtion has to be inverse to the one done in the 'run_pwa_...' script to get the ids right
+	return int((float(m)-float(mMin))/float(width)+1+0.5) 	# The +0.5 is needed to get the rounding right
+
+def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,binWidth,nstage,tBinsAct,seeds,mappingName='map',MC_Fit=False):
+	jobIDs=[]
+	MC_char=''
+	pwaIn="'USR52mb'"
+	if MC_Fit:
+		MC_char='C '
+		pwaIn = "'wMC'"
+
+# The thing with the mapping file can probably be turned off, but I am too lazy right now...)
+	jobnameprefix='pwa'
+	reloop=False
+	wrampmode = False # Put in a wrampmode, that looks for nonexisting 'wramp' files, that shoult be there, then only submits the jobs, where the wrampfile is missing with seed '404'
+	iseed_random=0
+	nseed_random=40
+
+	if wrampmode:
+		seeds=['404']
+
+	nrep=1
+
+	if nstage == 0:	# Submits all seeds, waits for the first seed to write the amplitudes, then runs all other seeds
+		iNfits_min=0
+		iNfits_max=len(seeds)
+
+	if  nstage == 1: # Submits only the first seed.
+		iNfits_min=0
+		iNfits_max=1
+
+	if  nstage == 2: # Submits all but the first seed, does not write amplitudes
+		iNfits_min=0
+		iNfits_max=len(seeds)
+
+	if  nstage == 3: # Resubmits killed, unfinished jobs.
+		iNfits_min=0
+		iNfits_max=len(seeds)
+		if reloop:
+			nrep=100
+
+	if not os.path.exists(logdir):
+		os.makedirs(logdir)
+
+	if not os.path.exists(target):
+		os.makedirs(target)
+
+	for irep in range(0,nrep):
+		if nstage<3 and not wrampmode: #Do NOT run several different fits at once, this will mess up the mapping file.
+			mappingFile=open(mappingName,'w')
+		elif not wrampmode:
+			mappingFile=open(mappingName,'r')
+			mappingsStore=mappingFile.readlines()
+			mappingFile.close()
+			mappingFile=open(mappingName,'a')
+		for l in range(len(tBinsAct)):
+			lowerEdge=tBinsAct[l][0]
+			upperEdge=tBinsAct[l][1]
+
+			workdirTbin=target+'/'+lowerEdge+'-'+upperEdge+'/'
+
+			if not os.path.exists(workdirTbin):
+				os.makedirs(workdirTbin)
+			
+			if not os.path.exists(wrampdir):
+				os.makedirs(wrampdir)
+
+	#			copyfile(intdir+'/'+lowerEdge+'-'+upperEdge+'/nmcset.dat',workdirTbin+'/nmcset_'+lowerEdge+'-'+upperEdge+'.dat')		
+			readCard=open(cardfolder+'/'+card,'r')
+			for line in readCard.readlines():
+				if '*OPEN70' in line:
+					addwaveName=line.split("'")[1]
+					print "Addwave file is: "+addwaveName
+			readCard.close()
+			for fn in os.listdir(cardfolder):
+	    			if os.path.isfile(cardfolder+'/'+fn):
+	#				if fn.startswith('addwave') or fn.startswith('ampl'):
+					if fn == addwaveName or fn.startswith('ampl'):
+						copyfile(cardfolder+'/'+fn,workdirTbin+'/'+fn)
+			nTasks=int((float(mMax)-float(mMin))/float(binWidth)+0.00001)
+			if iseed_random>0:
+				iNfits_max=nseed_random 
+				iNfits_min=0
+		
+
+			for iNfits in range(iNfits_min,iNfits_max):
+				iNFITS=0
+				if iseed_random ==  0:
+					seed=seeds[iNfits]
+				else:
+					seed=random.randint(0,100000)
+				cardName=workdirTbin+'card_'+str(iNFITS)+'_'+str(seed)+'_submit1.dat'
+				if nstage==3:
+					cardName=workdirTbin+'card_'+str(iNFITS)+'_'+str(seed)+'_resubmit1.dat' #The file will be copied, even if the job doesn't have to be resubmitted.
+				
+				copyfile(cardfolder+'/'+card,cardName)
+				iwrite_wramp=0
+				iread_wramp=0
+
+				if nstage == 1:
+					iwrite_wramp=1
+
+				if nstage == 0 and iNfits == 0:
+					iwrite_wramp=1
+
+				if nstage == 2:
+					iread_wramp=1
+
+				if nstage == 0 and iNfits > 0:
+					iread_wramp=1
+
+				if nstage == 3:
+					iread_wramp=1
+
+				appendToCard=[]
+
+				if iwrite_wramp == 1:
+					appendToCard=appendToCard+["""
+C
+ WRAMP_WRITE_READ
+C
+ WRAMP_WRITE_CHECK
+C
+C IWRITEAMPLIT
+C WRAMP_READ
+C WRAMP_DELETE
+C
+"""]
+				if iread_wramp == 1:
+					appendToCard=appendToCard+["""
+C
+C WRAMP_WRITE_READ
+C
+C IWRITEAMPLIT
+C
+ WRAMP_READ
+C
+C
+ WRAMP_CLOSED_WAIT
+C
+C WRAMP_DELETE
+C
+"""]
+
+
+				appendToCard=appendToCard+[
+	'C'										,
+	'C'										,	
+	"C *OPEN70  'nmcset_"+lowerEdge+'-'+upperEdge+".dat'"				,
+	'C READ  70'									,
+	'C'										,
+	'C - do not label file wramp with seed (will be same file for all attempts)'	,
+	'C'										,
+	' ISEEDAMPLIT  -1'								,
+	'C'										,
+	' WRAMP_CLOSED_WAIT'								,
+	'C'										,
+	' PARAMIN_STEP'									,
+	' PARAMIN_DELETE'								,
+	'C PARAMIN_NO_SUFFIX'								,
+	'C'										,
+	'NFITS 1'									,
+	'C'										,
+	"NAME_TREE_PH_IN "+pwaIn							,
+	'C'										,						
+	MC_char+" *PH_BINS_PREFIX '"+source+"/'"					,
+	'C'										,
+	"FILEWRAMP '"+wrampdir+'/wramp_'+lowerEdge+'-'+upperEdge+".dat'"		,
+	'C'										,
+	"DIRINTEGRALS '"+intdir+'/'+lowerEdge+'-'+upperEdge+"/'"			,
+	'C'										,
+	'C do not mess-up here !!!!!'							,
+	'C'										,
+	"*FILEFIT '"+workdirTbin+'fit_'+lowerEdge+'-'+upperEdge+".dat'"			,
+	'C'										,
+	"*FILEPARAM '"+workdirTbin+'param_'+lowerEdge+'-'+upperEdge+".dat'"		,
+	'C'										,
+	"*FILEPARAMIN '"+workdirTbin+'paramin_'+lowerEdge+'-'+upperEdge+".dat'"		,
+	'C'										,
+	'*INTBIN 0.500 2.500 '+lowerEdge+' '+upperEdge+' 0.010'				,
+	'C'										,
+	'C Please do not mess-up here  !!!!'						,
+	'C*INTBIN 0.500 2.500 0.100000 1.000000 0.040'					,
+	'C'										,
+	' *BIN 0.500 2.500 '+lowerEdge+' '+upperEdge+' '+binWidth			,
+	'C'										,
+	'C -- *BIN 0.500 2.500 0.100 0.140  '+binWidth					]
+				actCard=open(cardName,'a')
+				for line in appendToCard:
+					actCard.write(line)
+					actCard.write('\n')
+
+				logname=logdir+'/run_pwa_'+lowerEdge+'-'+upperEdge+'_'+mMin+'_'+mMax+'_'+str(seed)+'.log' 
+				jobname=jobnameprefix+'_'+lowerEdge+'-'+upperEdge+'_'+mMin+'_'+mMax+'_'+str(seed)
+				if not wrampmode:
+					taskList='1-'+str(nTasks)
+					notResubmit=[]
+					if nstage == 3:				
+						oldJobs=[]
+						status = getRunningJobs()
+						identifier = lowerEdge+'   '+upperEdge+'   '+mMin+'    '+mMax+'   '+str(seed) #Identifier has to match the lines written in the 'mappingFile'
+						for line in mappingsStore:
+							if identifier in line:
+								oldJobs.append(line.split()[0])
+						for oldJob in oldJobs:
+							if status.has_key(oldJob):
+								notResubmit+=status[oldJob] #Do not resubmit jobs that are still running
+						for fn in os.listdir(workdirTbin):
+		    					if os.path.isfile(workdirTbin+'/'+fn) and fn.startswith('param_'):
+								splits=fn.split('_')
+								if len(splits) > 4:
+									if splits[1]== lowerEdge+'-'+upperEdge+'.dat' and splits[4]==str(seed): #Do not resubmit finished jobs
+										notResubmit.append(getRightId(mMin,binWidth,splits[2]))
+		#			nstage=3
+					if len(notResubmit)<nTasks:
+						submitCommand = 'qsub  -l short=TRUE,h_vmem=2100M -t '+taskList+' -N '+jobname+'  -j y -o '+logname+'  -wd '+workdirTbin+' ./run_pwa_new_arrays.sh '+executable+' '+cardName+' '+mMin+' '+mMax+' '+str(seed)+' '+logdir+' '+lowerEdge+' '+upperEdge+' '+binWidth
+						if nstage == 3:
+							submitCommand = 'qsub  -l short=TRUE,h_vmem=2100M -t '+taskList+' -N '+jobname+' -h -j y -o '+logname+'  -wd '+workdirTbin+' ./run_pwa_new_arrays.sh '+executable+' '+cardName+' '+mMin+' '+mMax+' '+str(seed)+' '+logdir+' '+lowerEdge+' '+upperEdge+' '+binWidth
+						msg=os.popen(submitCommand).readlines()[0]		
+						print msg
+						jobId=msg[15:22]
+						jobIDs.append(jobId)
+						if nstage == 3:
+							for delId in notResubmit:
+								msg=os.popen('qdel '+jobId+' -t '+str(delId)).readlines()[0]
+								print msg
+							msg=os.popen('qrls '+jobId).readlines()[0]
+						mappingFile.write(jobId+'   '+lowerEdge+'   '+upperEdge+'   '+mMin+'    '+mMax+'   '+str(seed)+'\n') #Has to match the identifier for resubmission
+					else:
+						print 'Nothing to do for: '+lowerEdge+'   '+upperEdge+'   '+mMin+'    '+mMax+'   '+str(seed)
+				else:
+					massBins=[]
+					for i in range(0,nTasks+1):
+						massBins.append(float(mMin)+i*float(binWidth))
+					for i in range(len(massBins)-1):
+						minStringRaw=str(massBins[i])
+						maxStringRaw=str(massBins[i+1])
+						minString=''
+						maxString=''
+						for j in range(7):
+							if len(minStringRaw)>j:
+								minString=minString+minStringRaw[j]
+							else:
+								minString=minString+'0'
+							if len(maxStringRaw)>j:
+								maxString=maxString+maxStringRaw[j]
+							else:
+								maxString=maxString+'0'
+						wrampCloseString='wramp_'+lowerEdge+'-'+upperEdge+'.dat_'+minString+'_'+maxString+'_closed'
+						if not os.path.isfile(wrampdir+'/'+wrampCloseString):
+							chunks=wrampCloseString.split('_')
+							minMiss=float(chunks[2])
+							missingId=getRightId(mMin,binWidth,minMiss)
+							taskList=str(missingId)+'-'+str(missingId)
+							submitCommand = 'qsub  -l short=TRUE,h_vmem=2100M -t '+taskList+' -N '+jobname+'  -j y -o '+logname+'  -wd '+workdirTbin+' ./run_pwa_new_arrays.sh '+executable+' '+cardName+' '+mMin+' '+mMax+' '+str(seed)+' '+logdir+' '+lowerEdge+' '+upperEdge+' '+binWidth
+							msg=os.popen(submitCommand).readlines()[0]		
+							print msg
+							time.sleep(0.1) # Not more than ten requests per second (Markus says)
+		if not wrampmode:
+			mappingFile.close()
+		if nstage==3 and reloop:
+			print 'Sleeping 20 min...'
+			time.sleep(1200)
+		nTasks=str(int((float(mMax)-float(mMin))/float(binWidth)+0.00001))
+	return jobIDs
+
+
+
+
+
+
+
+
