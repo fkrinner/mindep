@@ -6,6 +6,7 @@ from shutil import copyfile
 Submits the integrator to the e18 cluster
 """
 def submit_integrals(target,source,logdir,cardFolder,card,mMin,mMax,binWidth,tBins, is_MC):
+	"""Method to submit integral jobs to the E18 batch system"""
 #	executable='/nfs/hicran/project/compass/analysis/fkrinner/workDir/compassPWAbin_new/bin/integrator_3pic_compass_2008florian3_dfunc.static'
 	executable='/nfs/hicran/project/compass/analysis/fkrinner/workDir/compassPWAbin_big/bin/integrator_3pic_compass_2008florian3_dfunc.static'
 	jobIDs=[]
@@ -20,7 +21,7 @@ def submit_integrals(target,source,logdir,cardFolder,card,mMin,mMax,binWidth,tBi
 		copyfile(cardFolder+'/'+card,workdirTbin+'/card.dat')
 		cardFile=open(workdirTbin+'/card.dat','a')
 		appendToCard=[
-"INT_TEXT_OUTPUT  1"                                            ,
+"INT_TEXT_OUTPUT  1"                                            ,	#Append some statemants to the card
 "COMPENSATE_AMP    0"						,
 "NAME_TREE_MC_IN  'USR51MCout'"					,
 "TYPE_TREE_MC_IN  1"						,
@@ -40,7 +41,7 @@ def submit_integrals(target,source,logdir,cardFolder,card,mMin,mMax,binWidth,tBi
 				addwaveName=line.split("'")[1]
 				print "Addwave file is: "+addwaveName
 		readCard.close()
-		for fn in os.listdir(cardFolder):
+		for fn in os.listdir(cardFolder): # copy addwave and ampl files
     			if os.path.isfile(cardFolder+'/'+fn):
 				if fn == addwaveName or fn.startswith('ampl'):
 					copyfile(cardFolder+'/'+fn,workdirTbin+'/'+fn)	
@@ -48,7 +49,7 @@ def submit_integrals(target,source,logdir,cardFolder,card,mMin,mMax,binWidth,tBi
 		nTasks=str(int((float(mMax)-float(mMin))/float(binWidth)+0.00001))			
 		submitCommand="qsub  -l short=TRUE,h_vmem=1100M -l hostname=!short_opteron@node2.cluster -t 1-"+nTasks+" -j y -o "+logdir+"/run_integrator_"+lowerEdge+"-"+upperEdge+".log  -wd "+target+"/"+lowerEdge+"-"+upperEdge+" ./run_integrator_array.sh "+executable+" "+target+"/"+lowerEdge+"-"+upperEdge+"/card.dat "+seed+" "+logdir+" "+lowerEdge+" "+upperEdge+" "+mMin+" "+mMax+" "+binWidth
 #		print submitCommand
-		msg=os.popen(submitCommand).readlines()[0]		
+		msg=os.popen(submitCommand).readlines()[0]	#Submit jobs	
 		print msg
 		jobIDs.append(msg[15:22])
 	return jobIDs

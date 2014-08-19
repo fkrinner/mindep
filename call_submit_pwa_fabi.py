@@ -11,19 +11,26 @@ from analyzeQstat import getRunningJobs
 executable='/nfs/hicran/project/compass/analysis/fkrinner/workDir/compassPWAbin_big/bin/pwanew_3pic_compass_2008florian3_dfunc.static'
 
 def getRightId(mMin,width,m):					# The calcualtion has to be inverse to the one done in the 'run_pwa_...' script to get the ids right
+	"""Detmins the job ID for a given mass from the minimum mass, and the bin width"""
 	return int((float(m)-float(mMin))/float(width)+1+0.5) 	# The +0.5 is needed to get the rounding right
 
-def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,binWidth,nstage,tBinsAct,seeds,mappingName='map',MC_Fit=False):
+def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,binWidth,nstage,tBinsAct,seeds,mappingName='map',MC_Fit=False,treename=None):
+	"""Submits the COMPASSPWA fitter to the E18 batch system"""
 	jobIDs=[]
 	MC_char=''
-	pwaIn="'USR52mb'"
-	if MC_Fit:
+	
+#Set the event tree name:
+	pwaIn="'USR52mb'" #Default for fits
+	if MC_Fit: 
 		MC_char='C '
-		pwaIn = "'wMC'"
+		pwaIn = "'wMC'" #Set for Monte carlo fits
+	if treename: #Override, if an explicit tree name is given
+		pwaIn = treename
 
-# The thing with the mapping file can probably be turned off, but I am too lazy right now...)
+# The thing with the mapping file can probably be taken out, but I am too lazy right now...)
 	jobnameprefix='pwa'
-	reloop=False
+	reloop=False 	# Set reloop, if 'on the fly' resubmission is wanted. At the moment, reloop is False by default, since fits are performed with the './perform_PWA.py' script
+			# Which resibmits after all jobs have completed. Probably some time could be saved, if reloop is reactivated, but some effort has to be made, things will probably be messed up
 	wrampmode = False # Put in a wrampmode, that looks for nonexisting 'wramp' files, that shoult be there, then only submits the jobs, where the wrampfile is missing with seed '404'
 	iseed_random=0
 	nseed_random=40
@@ -31,8 +38,9 @@ def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,bi
 	if wrampmode:
 		seeds=['404']
 
-	nrep=1
+	nrep=1 #Leave this at one, chance at position <1> if reloop is wanted
 
+#Sets the stage
 	if nstage == 0:	# Submits all seeds, waits for the first seed to write the amplitudes, then runs all other seeds
 		iNfits_min=0
 		iNfits_max=len(seeds)
@@ -48,7 +56,7 @@ def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,bi
 	if  nstage == 3: # Resubmits killed, unfinished jobs.
 		iNfits_min=0
 		iNfits_max=len(seeds)
-		if reloop:
+		if reloop: # position <1> is here. Also set reloop to True, if wanted
 			nrep=100
 
 	if not os.path.exists(logdir):
@@ -58,7 +66,7 @@ def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,bi
 		os.makedirs(target)
 
 	for irep in range(0,nrep):
-		if nstage<3 and not wrampmode: #Do NOT run several different fits at once, this will mess up the mapping file.
+		if nstage<3 and not wrampmode: #Do NOT run several different fits at once, this will mess up the mapping file. (Does not matter, if reloop == False)
 			mappingFile=open(mappingName,'w')
 		elif not wrampmode:
 			mappingFile=open(mappingName,'r')
@@ -77,13 +85,16 @@ def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,bi
 			if not os.path.exists(wrampdir):
 				os.makedirs(wrampdir)
 
-	#			copyfile(intdir+'/'+lowerEdge+'-'+upperEdge+'/nmcset.dat',workdirTbin+'/nmcset_'+lowerEdge+'-'+upperEdge+'.dat')		
+	#			copyfile(intdir+'/'+lowerEdge+'-'+upperEdge+'/nmcset.dat',workdirTbin+'/nmcset_'+lowerEdge+'-'+upperEdge+'.dat')	
+
+#Determine the addwave file	
 			readCard=open(cardfolder+'/'+card,'r')
 			for line in readCard.readlines():
 				if '*OPEN70' in line:
 					addwaveName=line.split("'")[1]
 					print "Addwave file is: "+addwaveName
 			readCard.close()
+
 			for fn in os.listdir(cardfolder):
 	    			if os.path.isfile(cardfolder+'/'+fn):
 	#				if fn.startswith('addwave') or fn.startswith('ampl'):
@@ -109,6 +120,7 @@ def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,bi
 				iwrite_wramp=0
 				iread_wramp=0
 
+#Set flags to determine what to append to the card
 				if nstage == 1:
 					iwrite_wramp=1
 
@@ -124,6 +136,8 @@ def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,bi
 				if nstage == 3:
 					iread_wramp=1
 
+
+################################################### Set statements that will be appended to the card
 				appendToCard=[]
 
 				if iwrite_wramp == 1:
@@ -197,6 +211,7 @@ C
 	' *BIN 0.500 2.500 '+lowerEdge+' '+upperEdge+' '+binWidth			,
 	'C'										,
 	'C -- *BIN 0.500 2.500 0.100 0.140  '+binWidth					]
+###############################################################################################
 				actCard=open(cardName,'a')
 				for line in appendToCard:
 					actCard.write(line)

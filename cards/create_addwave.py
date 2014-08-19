@@ -12,10 +12,11 @@ except:
 try:
 	card = open('card_'+name+'.dat','r')
 except:
+	print "'card_"+name+".dat' does not exists, try card alone"
 	try:
 		card = open(name,'r')
 	except:
-		print "Card does not exist"
+		print "Card '"+name+"' does not exist"
 		exit(1)
 
 for line in card.readlines():

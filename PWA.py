@@ -11,12 +11,15 @@ from call_submit_pwa_fabi import submit_pwa
 import shutil
 import datetime
 def writte(fil,outstring):
+	""" Print a string and write it to a file"""
 	print outstring
 	fil.write(outstring)
 def eksit(i):
+	"""Exit method, can kill the mother-process, if wanted (Fire and forget)"""
 #	ppid=os.getppid()
 #	os.popen("kill -9 "+str(ppid)) # Use this to kill also the shell, where the script is running
 	exit(0)
+
 def perform_PWA(card,			# Name of the card
 		name,			# Name of the fit
 		mMin,			# Lower mass Limit
@@ -38,27 +41,29 @@ def perform_PWA(card,			# Name of the card
 		intSource,
 		pwaSource,
 		cleanupCore = True,
-		MC_Fit = False
-					):
-	
-	KILL_TO_WIN = True
+		MC_Fit = False,
+		treename = None			):
+	"""Main method to perform a PWA on the E18 batch system"""
+	KILL_TO_WIN = True # Kill first seed after completing the wramp file to start the other seeds earlier
 	if len(seeds) == 1:
 		KILL_TO_WIN = False
 
+	#Set the directories
 	logDir=target+'/'+name+'/log'
 	intDir=target+'/'+name+'/integrals'
 	fitDir=target+'/'+name+'/fit'	
 	wrampDir=target+'/'+name+'/wramp'
-
 	if not os.path.isdir(target+'/'+name):
 		os.makedirs(target+'/'+name)
 	if not os.path.isdir(wrampDir):
 		os.makedirs(wrampDir)
 
+	#Set up the log file
 	totalLog=open(target+'/'+name+'/log_pwa_'+name+'.log','w')
 	writte(totalLog,'Start complete PWA process\n')
 	writte(totalLog,'Target: '+target+'\nCard: '+cardfolder+'/'+card+'\nm3Pi: '+mMin+'-'+mMax+'\nIntegral bidwidth: '+intBinWidth+'\nPWA binwidth: '+pwaBinWidth+"\nt': "+str(tBins)+'\nIntegral Source: '+intSource+'\nPWA source: '+pwaSource+'\n\nStart at stage: '+str(startStage)+'\n')
 
+	#Determine mode from card
 	card_open = open(cardfolder+'/'+card,'r')
 	for line in card_open.readlines():
 		if 'CARD_FOR_MONTE_CARLO' in line:
@@ -66,20 +71,19 @@ def perform_PWA(card,			# Name of the card
 			writte(totalLog,"Fit to MC_data")
 	card_open.close()
 
-
-
 	stage=startStage
 
+	#Stage 1: Calculate integrals
 	if stage == 1:
 		writte(totalLog,'--------------------------------------------------------------------------------\n')
 		writte(totalLog,'Stage 1: Submit integrals.\n')
 		writte(totalLog,'--------------------------------------------------------------------------------\n')
 		writte(totalLog,'   '+str(datetime.datetime.now())+'\n')
-		expectedFiles=int((float(mMax)-float(mMin))/float(intBinWidth)+0.00001)
+		expectedFiles=int((float(mMax)-float(mMin))/float(intBinWidth)+0.00001) #Calculate number of expaected integral files
 		writte(totalLog,'   Expect '+str(expectedFiles)+' integral files.\n')
-		jobIDs=submit_integrals(intDir,intSource,logDir,cardfolder,card,mMin,mMax,intBinWidth,tBins, MC_Fit)
+		jobIDs=submit_integrals(intDir,intSource,logDir,cardfolder,card,mMin,mMax,intBinWidth,tBins, MC_Fit) #Submit jobs
 		writte(totalLog,'   Wait for cluster to finish.\n')
-		while True:
+		while True: #Wait until all integral jobs are finished
 			writte(totalLog,'   Sleep: '+str(datetime.datetime.now())+'\n')
 			time.sleep(900)	
 			stat=os.popen('qstat').readlines()
@@ -93,7 +97,7 @@ def perform_PWA(card,			# Name of the card
 				break
 		writte(totalLog,'   Cluster has finished the integral-jobs.\n')
 		writte(totalLog,'   Check, if all integral files have been created.\n')
-		for tBin in tBins:
+		for tBin in tBins: #Check if all integral files exist
 			actFolder=intDir+'/'+tBin[0]+'-'+tBin[1]	
 
 			NdiagNacc=0
@@ -127,6 +131,7 @@ def perform_PWA(card,			# Name of the card
 			stage=2
 		writte(totalLog,'Stage 1 successful. All integral files found.\n\n')
 
+	#Stage 2: Create wramp files
 	if stage==2:
 		writte(totalLog,'--------------------------------------------------------------------------------\n')
 		writte(totalLog,'Stage 2: First seeds for wramp files.\n')
@@ -134,9 +139,9 @@ def perform_PWA(card,			# Name of the card
 		writte(totalLog,'   '+str(datetime.datetime.now())+'\n')
 		expectedFiles=int((float(mMax)-float(mMin))/float(pwaBinWidth)+0.00001)*len(tBins)
 		writte(totalLog,'   Expect '+str(expectedFiles)+' wramp files.\n')
-		jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,1,tBins,seeds,mappingName='map',MC_Fit=MC_Fit)
+		jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,1,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename) #Submit jobs
 		writte(totalLog,'   Wait for cluster to finish.\n')
-		while True:
+		while True: #Wait for jobs
 			time.sleep(900)	
 			writte(totalLog,'   Sleep: '+str(datetime.datetime.now())+'\n')
 			if KILL_TO_WIN:
@@ -165,7 +170,7 @@ def perform_PWA(card,			# Name of the card
 		writte(totalLog,'   Check, if all wramp files have been created.\n')
 		nClosed=0
 		nWramp=0
-		for fn in os.listdir(wrampDir):
+		for fn in os.listdir(wrampDir): #Check if all wramp files exist
 			if 'wramp_' in fn:
 				nWramp+=1
 			if '_closed' in fn:
@@ -183,7 +188,7 @@ def perform_PWA(card,			# Name of the card
 		writte(totalLog,"Stage 2 successful. All 'wramp' files found\n\n")
 
 
-	if stage ==3 and (len(seeds)>1 or KILL_TO_WIN):
+	if stage ==3 and (len(seeds)>1 or KILL_TO_WIN): # Submit additional seeds
 		writte(totalLog,'--------------------------------------------------------------------------------\n')
 		writte(totalLog,'Stage 3: Submit additional seeds.\n')
 		writte(totalLog,'--------------------------------------------------------------------------------\n')
@@ -191,9 +196,9 @@ def perform_PWA(card,			# Name of the card
 		if KILL_TO_WIN:
 			adsed = seeds[:]
 			adsed.insert(0,'000000') # put a dummy seed to the front, that will not be submitted by stage 2, to run also the first real seed, which was killed after completing the wramp file.
-			jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,2,tBins,adsed,mappingName='map',MC_Fit=MC_Fit)
+			jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,2,tBins,adsed,mappingName='map',MC_Fit=MC_Fit,treename=treename)
 		else:
-			jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,2,tBins,seeds,mappingName='map',MC_Fit=MC_Fit)
+			jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,2,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename)
 		writte(totalLog,'   Wait for cluster to finish.\n')
 		while True:
 			time.sleep(900)	
@@ -228,8 +233,8 @@ def perform_PWA(card,			# Name of the card
 		writte(totalLog,'   '+str(datetime.datetime.now())+'\n')
 		expectedFiles=int((float(mMax)-float(mMin))/float(pwaBinWidth)+0.00001)*len(seeds)
 		writte(totalLog,"   Expect "+str(expectedFiles)+" files in each t' bin.\n")
-		allParam_=False
-		for i in range(maxResubmit):
+		allParam_=False #All parameter files exist
+		for i in range(maxResubmit): #Loop over maximum number of resubmissions
 			nParam_=0
 			writte(totalLog,'   Resubmission '+str(i+1)+'.\n')
 			writte(totalLog,"   Check if some 'param_...' files are missing.\n")
@@ -243,7 +248,7 @@ def perform_PWA(card,			# Name of the card
 				writte(totalLog,'   Found '+str(nMom)+" 'param_...' files for t'="+str(tBin)+'\n')		
 			if nParam_ < len(tBins) * expectedFiles:
 				writte(totalLog,"   Some 'param_...' files missing. Resubmit.\n")
-				jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,3,tBins,seeds,mappingName='map',MC_Fit=MC_Fit)
+				jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,3,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename)
 				writte(totalLog,'   Wait for cluster to finish.\n')
 				while True:
 					time.sleep(900)	
@@ -258,13 +263,13 @@ def perform_PWA(card,			# Name of the card
 					if nRun==0:
 						break
 				writte(totalLog,'   Cluster has finished the PWA-jobs.\n\n')
-			else:
+			else: # Break if all parameter files exist
 				allParam_=True
 				writte(totalLog,"   All 'param_...' files found. Nothing to be done in stage 4.\n")
 				break
 		if not allParam_:
 			nParam_=0
-			for tBin in tBins:
+			for tBin in tBins: #Check again, if the last resubmission did the job
 				nMom=0
 				actFolder = fitDir+'/'+tBin[0]+'-'+tBin[1]+'/'
 				for fn in os.listdir(actFolder):
@@ -286,7 +291,7 @@ def perform_PWA(card,			# Name of the card
 				stage=5
 
 
-	if stage==5:
+	if stage==5: #Delete not needed files
 		writte(totalLog,'--------------------------------------------------------------------------------\n')
 		writte(totalLog,'Stage 5: Cleanup.\n')
 		writte(totalLog,'--------------------------------------------------------------------------------\n')
