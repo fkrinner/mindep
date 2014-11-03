@@ -42,7 +42,9 @@ def perform_PWA(card,			# Name of the card
 		pwaSource,
 		cleanupCore = True,
 		MC_Fit = False,
-		treename = None			):
+		treename = None,
+		wrampmode = False,
+		COMPENSATE_AMP	= '0'		):
 	"""Main method to perform a PWA on the E18 batch system"""
 	KILL_TO_WIN = True # Kill first seed after completing the wramp file to start the other seeds earlier
 	if len(seeds) == 1:
@@ -81,11 +83,11 @@ def perform_PWA(card,			# Name of the card
 		writte(totalLog,'   '+str(datetime.datetime.now())+'\n')
 		expectedFiles=int((float(mMax)-float(mMin))/float(intBinWidth)+0.00001) #Calculate number of expaected integral files
 		writte(totalLog,'   Expect '+str(expectedFiles)+' integral files.\n')
-		jobIDs=submit_integrals(intDir,intSource,logDir,cardfolder,card,mMin,mMax,intBinWidth,tBins, MC_Fit) #Submit jobs
+		jobIDs=submit_integrals(intDir,intSource,logDir,cardfolder,card,mMin,mMax,intBinWidth,tBins, MC_Fit,COMPENSATE_AMP=COMPENSATE_AMP) #Submit jobs
 		writte(totalLog,'   Wait for cluster to finish.\n')
 		while True: #Wait until all integral jobs are finished
 			writte(totalLog,'   Sleep: '+str(datetime.datetime.now())+'\n')
-			time.sleep(900)	
+			time.sleep(300)	
 			stat=os.popen('qstat').readlines()
 			nRun = 0
 			for line in stat:
@@ -139,10 +141,10 @@ def perform_PWA(card,			# Name of the card
 		writte(totalLog,'   '+str(datetime.datetime.now())+'\n')
 		expectedFiles=int((float(mMax)-float(mMin))/float(pwaBinWidth)+0.00001)*len(tBins)
 		writte(totalLog,'   Expect '+str(expectedFiles)+' wramp files.\n')
-		jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,1,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename) #Submit jobs
+		jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,1,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename,wrampmode=wrampmode) #Submit jobs
 		writte(totalLog,'   Wait for cluster to finish.\n')
 		while True: #Wait for jobs
-			time.sleep(900)	
+			time.sleep(300)	
 			writte(totalLog,'   Sleep: '+str(datetime.datetime.now())+'\n')
 			if KILL_TO_WIN:
 				nClosed=0
@@ -201,7 +203,7 @@ def perform_PWA(card,			# Name of the card
 			jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,2,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename)
 		writte(totalLog,'   Wait for cluster to finish.\n')
 		while True:
-			time.sleep(900)	
+			time.sleep(300)	
 			writte(totalLog,'   Sleep: '+str(datetime.datetime.now())+'\n')
 			stat=os.popen('qstat').readlines()
 			nRun = 0
@@ -251,7 +253,7 @@ def perform_PWA(card,			# Name of the card
 				jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,3,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename)
 				writte(totalLog,'   Wait for cluster to finish.\n')
 				while True:
-					time.sleep(900)	
+					time.sleep(300)	
 					writte(totalLog,'   Sleep: '+str(datetime.datetime.now())+'\n')
 					stat=os.popen('qstat').readlines()
 					nRun = 0

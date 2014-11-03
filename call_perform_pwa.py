@@ -22,6 +22,8 @@ cleanupFit=True
 cleanupInt=True
 cleanupCore=True
 
+MC_fit = True
+
 intSource='/nfs/nas/data/compass/hadron/2008/comSkim/MC/PS-MC/trees_for_integrals/m-bins/0.100-1.000/'
 pwaSource='/nfs/nas/data/compass/hadron/2008/comSkim/2008-binned/all/skim_2012'	
 target='/nfs/mds/user/fkrinner/massIndepententFits/fits/'
@@ -50,6 +52,6 @@ perform_PWA(	card,			# Name of the card
 		cardfolder,		# Folder with card
 		intSource,
 		pwaSource,
-		cleanupCore
-					)
+		cleanupCore,
+		MC_fit					)
 

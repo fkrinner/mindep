@@ -5,7 +5,7 @@ from shutil import copyfile
 """
 Submits the integrator to the e18 cluster
 """
-def submit_integrals(target,source,logdir,cardFolder,card,mMin,mMax,binWidth,tBins, is_MC):
+def submit_integrals(target,source,logdir,cardFolder,card,mMin,mMax,binWidth,tBins, is_MC,COMPENSATE_AMP = '0'):
 	"""Method to submit integral jobs to the E18 batch system"""
 #	executable='/nfs/hicran/project/compass/analysis/fkrinner/workDir/compassPWAbin_new/bin/integrator_3pic_compass_2008florian3_dfunc.static'
 	executable='/nfs/hicran/project/compass/analysis/fkrinner/workDir/compassPWAbin_big/bin/integrator_3pic_compass_2008florian3_dfunc.static'
@@ -22,14 +22,15 @@ def submit_integrals(target,source,logdir,cardFolder,card,mMin,mMax,binWidth,tBi
 		cardFile=open(workdirTbin+'/card.dat','a')
 		appendToCard=[
 "INT_TEXT_OUTPUT  1"                                            ,	#Append some statemants to the card
-"COMPENSATE_AMP    0"						,
+"COMPENSATE_AMP    "+COMPENSATE_AMP				,
 "NAME_TREE_MC_IN  'USR51MCout'"					,
 "TYPE_TREE_MC_IN  1"						,
 "*MC_BINS_PREFIX '"+source+"'"					,
 "*MC_BINS_SUFFIX '.root'"					,
 "NMC1 1000000"							,
-"DIRINTEGRALS  '"+target+"/"+lowerEdge+"-"+upperEdge+"/'"	,
-"*INTBIN  0.500  2.500  "+lowerEdge+"  "+upperEdge+"  0.010"	]
+"DIRINTEGRALS  '"+target+"/"+lowerEdge+"-"+upperEdge+"'".replace("//","/")	,
+"*INTBIN  0.500  2.500  "+lowerEdge+"  "+upperEdge+"  0.010"	,
+"C*INTDIAG    0.500     2.500      0.010"			] # commented since daig integrals are not supported by the script ATM(*)
 		for line in appendToCard:
 			cardFile.write(line+'\n')
 		if is_MC:
@@ -53,3 +54,6 @@ def submit_integrals(target,source,logdir,cardFolder,card,mMin,mMax,binWidth,tBi
 		print msg
 		jobIDs.append(msg[15:22])
 	return jobIDs
+
+
+#(*) To create diag integrals, *INTBIN... has to be commented and *INTDIAG... has to be uncommented. The submitted jobs won't run, since the diagonal integrator does not allow mass limits which are given by this script. Nevertheless, the card generated here (with the *INTDIA...G line active and *INTBIN... deactivated) can be used to create the diagonal integral files manually. Run the script (without actually submitting the jobs) Then in the target folder comment *INTBIN... and uncomment *INTDIAG... then run executable+' card.dat' in the target dir. This job doesn't have to be parallelized since the integrals are the same in each t' bin -> Resulting files can be reused.

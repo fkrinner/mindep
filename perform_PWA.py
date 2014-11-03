@@ -3,7 +3,7 @@ from PWA import perform_PWA
 import os
 from sys import argv
 
-startStage=2
+startStage=1
 maxStage=5
 proceedStages=True
 maxResubmit=5
@@ -16,9 +16,10 @@ cleanupFit=True		# Will delete all 'param_', 'paramin_', 'fit_', 'sfit_' files a
 cleanupInt=True		# Will delete all Integral-files after completing the fit. Only textoutput left.
 cleanupCore=True	# Will delete all core dump files
 
-MC_fit = True # Fit to Monte Carlo data yes/no
+wrampmode = False
 
-
+COMPENSATE_AMP = '0'
+#COMPENSATE_AMP = '1'
 
 try:
 	name=argv[1] # Name for the fit to create the folder. Will use the card './cards/card_<name>.dat
@@ -26,7 +27,7 @@ except:
 	name=raw_input("Give a name for the fit: ")
 
 #treename = "'USR51mtb'" # Name for event trees, if None, the default values will be used
-treename = None
+#treename = "'DECK_AS'"
 
 # StartStage 1: Submit integrals
 # StartStage 2: Submit first seed for pwa (to get wramp)
@@ -56,18 +57,28 @@ mMin='1.500'													#
 														#
 intBinWidth='0.010'												# Bin widths (As Strings)
 pwaBinWidth='0.040'												#
+#pwaBinWidth = '0.020'														#
 														#
 #tBins=[['0.10000','0.14077']]											# t' Bins as pairs of strings
 #tBins=[['0.10000', '0.14077'],['0.14077', '0.19435'],['0.19435', '0.32617'],['0.32617', '1.00000']]		#
 #tBins=[['0.10000', '0.14077'],['0.14077', '0.19435']]								#
 #tBins=[['0.32617', '1.00000']]											#
 tBins=[['0.14077', '0.19435']]											#
+#tBins=[['0.10000', '0.14077']]											#
 #tBins=[['0.112853','0.127471']]										#				
+#tBins=[['0.164401','0.188816']]										#
+														#
+#Flo's eleven													#
+#tBins = [['0.100000','0.112853'],['0.112853','0.127471'],['0.127471','0.144385'],['0.144385','0.164401'],['0.164401','0.188816'],['0.188816','0.219907'],['0.219907','0.262177'],['0.262177','0.326380'],['0.326380','0.448588'],['0.448588','0.724294'],['0.724294','1.000000']]
+														#
+#Sebastian's eight												#
+#tBins=[['0.100000', '0.116349',],['0.116349', '0.135550'],['0.135550', '0.158754'],['0.158754', '0.187960'],['0.187960', '0.227078'],['0.227078', '0.285410'],['0.285410', '0.394889'],['0.394889', '1.000000']]
 														#
 														#
 intSource='/nfs/nas/data/compass/hadron/2008/comSkim/MC/PS-MC/trees_for_integrals/m-bins/0.100-1.000/'		# Phase Space Monte Carlo for Integrals
 pwaSource='/nfs/nas/data/compass/hadron/2008/comSkim/2008-binned/all/skim_2012'					#  3 Pi Data
 #pwaSource='/nfs/nas/data/compass/hadron/2008/comSkim/MC/DECK/18082011/m-bins/'					#  Deck MC (Dima's model)
+#pwaSource='/nfs/nas/data/compass/hadron/2008/comSkim/MC/DECK/19122011/t-m-bins/'				#  Other Deck model
 #---------------------------------------------------------------------------------------------------------------#
 print "Startstage: "+str(startStage)
 raw_input()
@@ -77,23 +88,47 @@ print "Cleanup:"
 print "Wramp\tLog\tFit\tInt\tCore"
 print str(cleanupWramp)+'\t'+str(cleanupLog)+'\t'+str(cleanupFit)+'\t'+str(cleanupInt)+'\t'+str(cleanupCore)
 print
-print "mMin\tmMax"
-print mMin+'\t'+mMax
+print "mMin\tmMax\tbinWidth"
+print mMin+'\t'+mMax+'\t'+pwaBinWidth
 print "tBins:"
 print tBins
 print "seeds:"
 print seeds
 print "card:"
 print card
+if not COMPENSATE_AMP == '0':
+	print "Using: COMPENSATE AMP "+COMPENSATE_AMP
+
+mcfit = raw_input("MC_fit?:")
+if mcfit.lower() == 'y':
+	MC_fit = True
+elif mcfit.lower()=='n':
+	MC_fit = False
+else:
+	print "++++++++++++++++!!!!!!!!!!!!!!!!!!"
+	print "not determined whether MC fit or not"
+	print "eksit(1) lololo"
+	exit(1)
+
+
 if MC_fit:
 	print "Fit to MC data !!1"
 else:
 	print "Fit to real data!!"
-if treename:
-	print "Using fixed treename for events:",treename
+try:
+	if treename:
+		print "Using fixed treename for events:",treename
+except NameError:
+	treename = None
+if wrampmode:
+	print "Starting in wrampmode"
+	answ = raw_input("Confirm?")
+	if not answ == 'yes':
+		exit(1)
+
 print '__________________________-__________________________________'
 confirm = raw_input("Are these settings correct?")
 if not confirm =='yes':
 	exit(1)
-perform_PWA(card,name,mMin,mMax,tBins,seeds,startStage,maxStage,proceedStages,maxResubmit,cleanupWramp,cleanupLog,cleanupFit,cleanupInt,intBinWidth,pwaBinWidth,target,cardfolder,intSource,pwaSource,cleanupCore,MC_fit,treename)
+perform_PWA(card,name,mMin,mMax,tBins,seeds,startStage,maxStage,proceedStages,maxResubmit,cleanupWramp,cleanupLog,cleanupFit,cleanupInt,intBinWidth,pwaBinWidth,target,cardfolder,intSource,pwaSource,cleanupCore,MC_fit,treename,wrampmode=wrampmode, COMPENSATE_AMP = COMPENSATE_AMP)
 

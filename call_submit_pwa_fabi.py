@@ -14,7 +14,7 @@ def getRightId(mMin,width,m):					# The calcualtion has to be inverse to the one
 	"""Detmins the job ID for a given mass from the minimum mass, and the bin width"""
 	return int((float(m)-float(mMin))/float(width)+1+0.5) 	# The +0.5 is needed to get the rounding right
 
-def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,binWidth,nstage,tBinsAct,seeds,mappingName='map',MC_Fit=False,treename=None):
+def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,binWidth,nstage,tBinsAct,seeds,mappingName='map',MC_Fit=False,treename=None, wrampmode = False):
 	"""Submits the COMPASSPWA fitter to the E18 batch system"""
 	jobIDs=[]
 	MC_char=''
@@ -31,12 +31,12 @@ def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,bi
 	jobnameprefix='pwa'
 	reloop=False 	# Set reloop, if 'on the fly' resubmission is wanted. At the moment, reloop is False by default, since fits are performed with the './perform_PWA.py' script
 			# Which resibmits after all jobs have completed. Probably some time could be saved, if reloop is reactivated, but some effort has to be made, things will probably be messed up
-	wrampmode = False # Put in a wrampmode, that looks for nonexisting 'wramp' files, that shoult be there, then only submits the jobs, where the wrampfile is missing with seed '404'
+
 	iseed_random=0
 	nseed_random=40
 
 	if wrampmode:
-		seeds=['404']
+		seeds=['404']	 # Put in a wrampmode, that looks for nonexisting 'wramp' files, that shoult be there, then only submits the jobs, where the wrampfile is missing with seed '404'
 
 	nrep=1 #Leave this at one, chance at position <1> if reloop is wanted
 

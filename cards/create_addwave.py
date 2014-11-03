@@ -23,9 +23,11 @@ for line in card.readlines():
 	if '*OPEN70' in line:
 		addwavename = line.strip().split()[1][1:-1]
 		addwave = open(addwavename,'w')
-	if line.strip().startswith('*IWAVENAM'):
+	if line.strip().startswith('*IWAVENAM') and not "_NAMDEP" in line:
 		chunks = line.strip().split("'")
 		addwave.write("*ADDWAVE  '"+chunks[1]+"'\n")
+	if line.strip().startswith('*IWAVENAM_NAMDEP'):
+		addwave.write(line.replace("*IWAVENAM_NAMDEP","*ADDWAVE_NAMDEP"))
 
 
 addwave.write("*ADDWAVE  '1-(2++)2- f2 pi P                                           '\n*ADDWAVE  '1-(2++)1- rho pi D                                          '")#For some reason, the second to last integral is doubled and the last one omitted, so none of them may appear in the fit.
