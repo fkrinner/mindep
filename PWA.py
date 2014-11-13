@@ -38,13 +38,15 @@ def perform_PWA(card,			# Name of the card
 		pwaBinWidth,		# Bin width for PWA
 		target,			# Target folder
 		cardfolder,		# Folder with card
-		intSource,
-		pwaSource,
-		cleanupCore = True,
-		MC_Fit = False,
-		treename = None,
-		wrampmode = False,
-		COMPENSATE_AMP	= '0'		):
+		intSource,		# Source for integrals
+		pwaSource,		# Source for PWA (events)
+		cleanupCore = True,	# Cleanupt core files
+		MC_Fit = False,		# Flag if fit to MC events
+		treename = None,	# Gives the name of the ROOT tree in thr input files Standard name, if none
+		wrampmode = False,	# Wrampmode, only used, if wramp-files are inclomplete. 
+		COMPENSATE_AMP	= '0',	# Compensate_amp flag in the card
+		PRINT_CMD_ONLY = False	# Flag to print submit commends rather than executing them
+							):
 	"""Main method to perform a PWA on the E18 batch system"""
 	KILL_TO_WIN = True # Kill first seed after completing the wramp file to start the other seeds earlier
 	if len(seeds) == 1:
@@ -83,7 +85,7 @@ def perform_PWA(card,			# Name of the card
 		writte(totalLog,'   '+str(datetime.datetime.now())+'\n')
 		expectedFiles=int((float(mMax)-float(mMin))/float(intBinWidth)+0.00001) #Calculate number of expaected integral files
 		writte(totalLog,'   Expect '+str(expectedFiles)+' integral files.\n')
-		jobIDs=submit_integrals(intDir,intSource,logDir,cardfolder,card,mMin,mMax,intBinWidth,tBins, MC_Fit,COMPENSATE_AMP=COMPENSATE_AMP) #Submit jobs
+		jobIDs=submit_integrals(intDir,intSource,logDir,cardfolder,card,mMin,mMax,intBinWidth,tBins, MC_Fit,COMPENSATE_AMP=COMPENSATE_AMP,PRINT_CMD_ONLY=PRINT_CMD_ONLY) #Submit jobs
 		writte(totalLog,'   Wait for cluster to finish.\n')
 		while True: #Wait until all integral jobs are finished
 			writte(totalLog,'   Sleep: '+str(datetime.datetime.now())+'\n')
@@ -141,7 +143,7 @@ def perform_PWA(card,			# Name of the card
 		writte(totalLog,'   '+str(datetime.datetime.now())+'\n')
 		expectedFiles=int((float(mMax)-float(mMin))/float(pwaBinWidth)+0.00001)*len(tBins)
 		writte(totalLog,'   Expect '+str(expectedFiles)+' wramp files.\n')
-		jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,1,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename,wrampmode=wrampmode) #Submit jobs
+		jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,1,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename,wrampmode=wrampmode,COMPENSATE_AMP=COMPENSATE_AMP,PRINT_CMD_ONLY=PRINT_CMD_ONLY) #Submit jobs
 		writte(totalLog,'   Wait for cluster to finish.\n')
 		while True: #Wait for jobs
 			time.sleep(300)	
@@ -169,22 +171,41 @@ def perform_PWA(card,			# Name of the card
 			if nRun==0:
 				break
 		writte(totalLog,'   Cluster has finished the PWA-jobs.\n')
-		writte(totalLog,'   Check, if all wramp files have been created.\n')
-		nClosed=0
-		nWramp=0
-		for fn in os.listdir(wrampDir): #Check if all wramp files exist
-			if 'wramp_' in fn:
-				nWramp+=1
-			if '_closed' in fn:
-				nClosed+=1
-		writte(totalLog,'   Found '+ str(nWramp)+" 'wramp'-files "+ str(nClosed) +' are closed.\n')
-		if nClosed == expectedFiles and not nWramp < 3*expectedFiles:
-			writte(totalLog,"   All 'wramp' files found.\n")
-		else:
+		for i in range(3):
+			writte(totalLog,'   Check, if all wramp files have been created.\n')
+			nClosed=0
+			nWramp=0
+			for fn in os.listdir(wrampDir): #Check if all wramp files exist
+				if 'wramp_' in fn:
+					nWramp+=1
+				if '_closed' in fn:
+					nClosed+=1
+			writte(totalLog,'   Found '+ str(nWramp)+" 'wramp'-files "+ str(nClosed) +' are closed.\n')
+			wrampDone = False
+			if nClosed == expectedFiles and not nWramp < 3*expectedFiles:
+				writte(totalLog,"   All 'wramp' files found.\n")
+				wrampDone = True
+				break 
+			else:
+				writte(totalLog,"   Not all 'wramp' files found. Resubmitting in wrampmode. #"+str(i)+"\n")
+				jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,1,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename,wrampmode=True,COMPENSATE_AMP=COMPENSATE_AMP,PRINT_CMD_ONLY=PRINT_CMD_ONLY) #Submit jobs
+				while True:
+					time.sleep(300)	
+					writte(totalLog,'   Sleep: '+str(datetime.datetime.now())+'\n')
+					nRun = 0
+					stat=os.popen('qstat').readlines()
+					for line in stat:
+						for ID in jobIDs:
+							if ID in line:
+								nRun+=1
+					print '   ',nRun,' jobs still running'
+					if nRun==0:
+						break
+		if not wrampDone:
 			writte(totalLog,"Not all 'wramp' files. Exit.")
 			writte(totalLog,'   '+str(datetime.datetime.now())+'\n')
 			totalLog.close()
-			eksit(1)
+		eksit(1)
 		if proceedStages and stage < maxStage:
 			stage=3
 		writte(totalLog,"Stage 2 successful. All 'wramp' files found\n\n")
@@ -198,9 +219,9 @@ def perform_PWA(card,			# Name of the card
 		if KILL_TO_WIN:
 			adsed = seeds[:]
 			adsed.insert(0,'000000') # put a dummy seed to the front, that will not be submitted by stage 2, to run also the first real seed, which was killed after completing the wramp file.
-			jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,2,tBins,adsed,mappingName='map',MC_Fit=MC_Fit,treename=treename)
+			jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,2,tBins,adsed,mappingName='map',MC_Fit=MC_Fit,treename=treename,PRINT_CMD_ONLY=PRINT_CMD_ONLY)
 		else:
-			jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,2,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename)
+			jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,2,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename,COMPENSATE_AMP=COMPENSATE_AMP,PRINT_CMD_ONLY=PRINT_CMD_ONLY)
 		writte(totalLog,'   Wait for cluster to finish.\n')
 		while True:
 			time.sleep(300)	
@@ -250,7 +271,7 @@ def perform_PWA(card,			# Name of the card
 				writte(totalLog,'   Found '+str(nMom)+" 'param_...' files for t'="+str(tBin)+'\n')		
 			if nParam_ < len(tBins) * expectedFiles:
 				writte(totalLog,"   Some 'param_...' files missing. Resubmit.\n")
-				jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,3,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename)
+				jobIDs=submit_pwa(fitDir,intDir,pwaSource,logDir,wrampDir,cardfolder,card,mMin,mMax,pwaBinWidth,3,tBins,seeds,mappingName='map',MC_Fit=MC_Fit,treename=treename,COMPENSATE_AMP=COMPENSATE_AMP,PRINT_CMD_ONLY=PRINT_CMD_ONLY)
 				writte(totalLog,'   Wait for cluster to finish.\n')
 				while True:
 					time.sleep(300)	

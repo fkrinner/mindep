@@ -17,6 +17,7 @@ cleanupInt=True		# Will delete all Integral-files after completing the fit. Only
 cleanupCore=True	# Will delete all core dump files
 
 wrampmode = False
+PRINT_CMD_ONLY = False
 
 COMPENSATE_AMP = '0'
 #COMPENSATE_AMP = '1'
@@ -49,10 +50,10 @@ if os.path.isfile(cardfolder+'/card_'+name+'.dat'):								# Use <cardfolder>/ca
 else:														#
 	print "Card does not exist"										#
 	exit(1)													#
-#mMin='0.500'													# Mass Limits (Given as Strings)
-#mMax='2.500'													#
-mMax='1.540'													#
-mMin='1.500'													#
+mMin='0.500'													# Mass Limits (Given as Strings)
+mMax='2.500'													#
+#mMax='1.540'													#
+#mMin='1.500'													#
 #mMax='1.260'													#
 														#
 intBinWidth='0.010'												# Bin widths (As Strings)
@@ -60,10 +61,10 @@ pwaBinWidth='0.040'												#
 #pwaBinWidth = '0.020'														#
 														#
 #tBins=[['0.10000','0.14077']]											# t' Bins as pairs of strings
-#tBins=[['0.10000', '0.14077'],['0.14077', '0.19435'],['0.19435', '0.32617'],['0.32617', '1.00000']]		#
+tBins=[['0.10000', '0.14077'],['0.14077', '0.19435'],['0.19435', '0.32617'],['0.32617', '1.00000']]		#
 #tBins=[['0.10000', '0.14077'],['0.14077', '0.19435']]								#
 #tBins=[['0.32617', '1.00000']]											#
-tBins=[['0.14077', '0.19435']]											#
+#tBins=[['0.14077', '0.19435']]											#
 #tBins=[['0.10000', '0.14077']]											#
 #tBins=[['0.112853','0.127471']]										#				
 #tBins=[['0.164401','0.188816']]										#
@@ -126,9 +127,15 @@ if wrampmode:
 	if not answ == 'yes':
 		exit(1)
 
+if PRINT_CMD_ONLY:
+	print "Will only print submit commands to shell, won't actually submit"
+	print "Therefore: Set maxStage to startStage = ",startStage
+	maxStage = startStage
+	print "Folders will be generated, cards will be created, files will be copied"
+
 print '__________________________-__________________________________'
 confirm = raw_input("Are these settings correct?")
 if not confirm =='yes':
 	exit(1)
-perform_PWA(card,name,mMin,mMax,tBins,seeds,startStage,maxStage,proceedStages,maxResubmit,cleanupWramp,cleanupLog,cleanupFit,cleanupInt,intBinWidth,pwaBinWidth,target,cardfolder,intSource,pwaSource,cleanupCore,MC_fit,treename,wrampmode=wrampmode, COMPENSATE_AMP = COMPENSATE_AMP)
+perform_PWA(card,name,mMin,mMax,tBins,seeds,startStage,maxStage,proceedStages,maxResubmit,cleanupWramp,cleanupLog,cleanupFit,cleanupInt,intBinWidth,pwaBinWidth,target,cardfolder,intSource,pwaSource,cleanupCore,MC_fit,treename,wrampmode=wrampmode, COMPENSATE_AMP = COMPENSATE_AMP,PRINT_CMD_ONLY = PRINT_CMD_ONLY)
 

@@ -14,7 +14,7 @@ def getRightId(mMin,width,m):					# The calcualtion has to be inverse to the one
 	"""Detmins the job ID for a given mass from the minimum mass, and the bin width"""
 	return int((float(m)-float(mMin))/float(width)+1+0.5) 	# The +0.5 is needed to get the rounding right
 
-def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,binWidth,nstage,tBinsAct,seeds,mappingName='map',MC_Fit=False,treename=None, wrampmode = False):
+def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,binWidth,nstage,tBinsAct,seeds,mappingName='map',MC_Fit=False,treename=None, wrampmode = False, COMPENSATE_AMP = '0', PRINT_CMD_ONLY=False):
 	"""Submits the COMPASSPWA fitter to the E18 batch system"""
 	jobIDs=[]
 	MC_char=''
@@ -170,6 +170,7 @@ C
 
 
 				appendToCard=appendToCard+[
+	'COMPENSATE_AMP '+COMPENSATE_AMP						,
 	'C'										,
 	'C'										,	
 	"C *OPEN70  'nmcset_"+lowerEdge+'-'+upperEdge+".dat'"				,
@@ -243,15 +244,29 @@ C
 						submitCommand = 'qsub  -l short=TRUE,h_vmem=2100M -t '+taskList+' -N '+jobname+'  -j y -o '+logname+'  -wd '+workdirTbin+' ./run_pwa_new_arrays.sh '+executable+' '+cardName+' '+mMin+' '+mMax+' '+str(seed)+' '+logdir+' '+lowerEdge+' '+upperEdge+' '+binWidth
 						if nstage == 3:
 							submitCommand = 'qsub  -l short=TRUE,h_vmem=2100M -t '+taskList+' -N '+jobname+' -h -j y -o '+logname+'  -wd '+workdirTbin+' ./run_pwa_new_arrays.sh '+executable+' '+cardName+' '+mMin+' '+mMax+' '+str(seed)+' '+logdir+' '+lowerEdge+' '+upperEdge+' '+binWidth
-						msg=os.popen(submitCommand).readlines()[0]		
+						if not PRINT_CMD_ONLY:
+							msg=os.popen(submitCommand).readlines()[0]		
+						else:
+							print submitCommand
+							msg = "no_message_retrieved:_command_printed"
 						print msg
 						jobId=msg[15:22]
 						jobIDs.append(jobId)
 						if nstage == 3:
 							for delId in notResubmit:
-								msg=os.popen('qdel '+jobId+' -t '+str(delId)).readlines()[0]
+								qdelCommand = 'qdel '+jobId+' -t '+str(delId)
+								if not PRINT_CMD_ONLY:
+									msg=os.popen(qdelCommand).readlines()[0]
+								else:
+									print qdelCommand
+									msg = "no_message_retrieved_command_printed"					
 								print msg
-							msg=os.popen('qrls '+jobId).readlines()[0]
+							qrlsCommand = 'qrls '+jobId
+							if not PRINT_CMD_ONLY:
+								msg=os.popen(qrlsCommand).readlines()[0]
+							else:
+								print qrlsCommand
+								msg = "no_message_retrieved:_command_printed"
 						mappingFile.write(jobId+'   '+lowerEdge+'   '+upperEdge+'   '+mMin+'    '+mMax+'   '+str(seed)+'\n') #Has to match the identifier for resubmission
 					else:
 						print 'Nothing to do for: '+lowerEdge+'   '+upperEdge+'   '+mMin+'    '+mMax+'   '+str(seed)
@@ -264,7 +279,7 @@ C
 						maxStringRaw=str(massBins[i+1])
 						minString=''
 						maxString=''
-						for j in range(7):
+						for j in range(7): # Get strings of length 7 for the mass borders
 							if len(minStringRaw)>j:
 								minString=minString+minStringRaw[j]
 							else:
@@ -274,13 +289,19 @@ C
 							else:
 								maxString=maxString+'0'
 						wrampCloseString='wramp_'+lowerEdge+'-'+upperEdge+'.dat_'+minString+'_'+maxString+'_closed'
+						wrampAnyString='wramp_'+lowerEdge+'-'+upperEdge+'.dat_'+minString+'_'+maxString+'*'
 						if not os.path.isfile(wrampdir+'/'+wrampCloseString):
+							os.popen('rm -f '+wrampAnyString) # First remove existing fles so it doesn't wait
 							chunks=wrampCloseString.split('_')
 							minMiss=float(chunks[2])
 							missingId=getRightId(mMin,binWidth,minMiss)
 							taskList=str(missingId)+'-'+str(missingId)
 							submitCommand = 'qsub  -l short=TRUE,h_vmem=2100M -t '+taskList+' -N '+jobname+'  -j y -o '+logname+'  -wd '+workdirTbin+' ./run_pwa_new_arrays.sh '+executable+' '+cardName+' '+mMin+' '+mMax+' '+str(seed)+' '+logdir+' '+lowerEdge+' '+upperEdge+' '+binWidth
-							msg=os.popen(submitCommand).readlines()[0]		
+							if not PRINT_CMD_ONLY:
+								msg=os.popen(submitCommand).readlines()[0]		
+							else:
+								print submitCommand
+								msg = "no_message_retrieved:_command_printed"
 							print msg
 							time.sleep(0.1) # Not more than ten requests per second (Markus says)
 		if not wrampmode:
