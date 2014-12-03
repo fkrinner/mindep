@@ -52,22 +52,23 @@ else:														#
 	exit(1)													#
 mMin='0.500'													# Mass Limits (Given as Strings)
 mMax='2.500'													#
-#mMax='1.540'													#
 #mMin='1.500'													#
+#mMax='1.540'													#
 #mMax='1.260'													#
 														#
 intBinWidth='0.010'												# Bin widths (As Strings)
-pwaBinWidth='0.040'												#
-#pwaBinWidth = '0.020'														#
+#pwaBinWidth='0.040'												#
+pwaBinWidth = '0.020'														#
 														#
 #tBins=[['0.10000','0.14077']]											# t' Bins as pairs of strings
-tBins=[['0.10000', '0.14077'],['0.14077', '0.19435'],['0.19435', '0.32617'],['0.32617', '1.00000']]		#
+#tBins=[['0.10000', '0.14077'],['0.14077', '0.19435'],['0.19435', '0.32617'],['0.32617', '1.00000']]		#
 #tBins=[['0.10000', '0.14077'],['0.14077', '0.19435']]								#
 #tBins=[['0.32617', '1.00000']]											#
 #tBins=[['0.14077', '0.19435']]											#
 #tBins=[['0.10000', '0.14077']]											#
 #tBins=[['0.112853','0.127471']]										#				
 #tBins=[['0.164401','0.188816']]										#
+tBins=[['0.100000','0.112853']]											#S
 														#
 #Flo's eleven													#
 #tBins = [['0.100000','0.112853'],['0.112853','0.127471'],['0.127471','0.144385'],['0.144385','0.164401'],['0.164401','0.188816'],['0.188816','0.219907'],['0.219907','0.262177'],['0.262177','0.326380'],['0.326380','0.448588'],['0.448588','0.724294'],['0.724294','1.000000']]
@@ -137,5 +138,8 @@ print '__________________________-__________________________________'
 confirm = raw_input("Are these settings correct?")
 if not confirm =='yes':
 	exit(1)
+if float(mMin) > float(mMax):
+	raise ValueError # Lower mass limit higher than upper mass limit
+
 perform_PWA(card,name,mMin,mMax,tBins,seeds,startStage,maxStage,proceedStages,maxResubmit,cleanupWramp,cleanupLog,cleanupFit,cleanupInt,intBinWidth,pwaBinWidth,target,cardfolder,intSource,pwaSource,cleanupCore,MC_fit,treename,wrampmode=wrampmode, COMPENSATE_AMP = COMPENSATE_AMP,PRINT_CMD_ONLY = PRINT_CMD_ONLY)
 

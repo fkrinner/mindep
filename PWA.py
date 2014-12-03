@@ -158,7 +158,7 @@ def perform_PWA(card,			# Name of the card
 						nClosed+=1
 				if nClosed == expectedFiles and not nWramp < 3*expectedFiles:
 					for iidd in jobIDs:
-						writte(totalLog,'   Killing job '+iidd+' because all wramp files exist, so all SEEDS can run.')
+						writte(totalLog,'   Killing job '+iidd+' because all wramp files exist, so all SEEDS can run.\n')
 						os.popen('qdel '+iidd)
 					break
 			nRun = 0
@@ -205,7 +205,7 @@ def perform_PWA(card,			# Name of the card
 			writte(totalLog,"Not all 'wramp' files. Exit.")
 			writte(totalLog,'   '+str(datetime.datetime.now())+'\n')
 			totalLog.close()
-		eksit(1)
+			eksit(1)
 		if proceedStages and stage < maxStage:
 			stage=3
 		writte(totalLog,"Stage 2 successful. All 'wramp' files found\n\n")

@@ -5,7 +5,19 @@ from shutil import copyfile
 """
 Submits the integrator to the e18 cluster
 """
-def submit_integrals(target,source,logdir,cardFolder,card,mMin,mMax,binWidth,tBins, is_MC,COMPENSATE_AMP = '0', PRINT_CMD_ONLY=False):
+def submit_integrals(
+			target,
+			source,
+			logdir,
+			cardFolder,
+			card,
+			mMin,
+			mMax,
+			binWidth,
+			tBins, 
+			is_MC,
+			COMPENSATE_AMP = '0', 
+			PRINT_CMD_ONLY=False):
 	"""Method to submit integral jobs to the E18 batch system"""
 #	executable='/nfs/hicran/project/compass/analysis/fkrinner/workDir/compassPWAbin_new/bin/integrator_3pic_compass_2008florian3_dfunc.static'
 	executable='/nfs/hicran/project/compass/analysis/fkrinner/workDir/compassPWAbin_big/bin/integrator_3pic_compass_2008florian3_dfunc.static'

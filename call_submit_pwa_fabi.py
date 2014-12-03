@@ -14,7 +14,26 @@ def getRightId(mMin,width,m):					# The calcualtion has to be inverse to the one
 	"""Detmins the job ID for a given mass from the minimum mass, and the bin width"""
 	return int((float(m)-float(mMin))/float(width)+1+0.5) 	# The +0.5 is needed to get the rounding right
 
-def submit_pwa(target,intdir,source,logdir,wrampdir,cardfolder,card,mMin,mMax,binWidth,nstage,tBinsAct,seeds,mappingName='map',MC_Fit=False,treename=None, wrampmode = False, COMPENSATE_AMP = '0', PRINT_CMD_ONLY=False):
+def submit_pwa(
+		target,
+		intdir,
+		source,
+		logdir,
+		wrampdir,
+		cardfolder,
+		card,
+		mMin,
+		mMax,
+		binWidth,
+		nstage,
+		tBinsAct,
+		seeds,
+		mappingName='map',
+		MC_Fit=False,
+		treename=None, 
+		wrampmode = False, 
+		COMPENSATE_AMP = '0', 
+		PRINT_CMD_ONLY=False):
 	"""Submits the COMPASSPWA fitter to the E18 batch system"""
 	jobIDs=[]
 	MC_char=''
