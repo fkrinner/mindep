@@ -9,6 +9,7 @@ from analyzeQstat import getRunningJobs
 
 #executable='/nfs/hicran/project/compass/analysis/fkrinner/workDir/compassPWAbin_new/bin/pwanew_3pic_compass_2008florian3_dfunc.static'
 executable='/nfs/hicran/project/compass/analysis/fkrinner/workDir/compassPWAbin_big/bin/pwanew_3pic_compass_2008florian3_dfunc.static'
+runscript='/nfs/hicran/project/compass/analysis/fkrinner/fkrinner/trunk/MassIndependentFit/run_pwa_new_arrays.sh'
 
 def getRightId(mMin,width,m):					# The calcualtion has to be inverse to the one done in the 'run_pwa_...' script to get the ids right
 	"""Detmins the job ID for a given mass from the minimum mass, and the bin width"""
@@ -260,9 +261,9 @@ C
 										notResubmit.append(getRightId(mMin,binWidth,splits[2]))
 		#			nstage=3
 					if len(notResubmit)<nTasks:
-						submitCommand = 'qsub  -l short=TRUE,h_vmem=2100M -t '+taskList+' -N '+jobname+'  -j y -o '+logname+'  -wd '+workdirTbin+' ./run_pwa_new_arrays.sh '+executable+' '+cardName+' '+mMin+' '+mMax+' '+str(seed)+' '+logdir+' '+lowerEdge+' '+upperEdge+' '+binWidth
+						submitCommand = 'qsub  -l short=TRUE,h_vmem=2100M -t '+taskList+' -N '+jobname+'  -j y -o '+logname+'  -wd '+workdirTbin+' '+runscript+' '+executable+' '+cardName+' '+mMin+' '+mMax+' '+str(seed)+' '+logdir+' '+lowerEdge+' '+upperEdge+' '+binWidth
 						if nstage == 3:
-							submitCommand = 'qsub  -l short=TRUE,h_vmem=2100M -t '+taskList+' -N '+jobname+' -h -j y -o '+logname+'  -wd '+workdirTbin+' ./run_pwa_new_arrays.sh '+executable+' '+cardName+' '+mMin+' '+mMax+' '+str(seed)+' '+logdir+' '+lowerEdge+' '+upperEdge+' '+binWidth
+							submitCommand = 'qsub  -l short=TRUE,h_vmem=2100M -t '+taskList+' -N '+jobname+' -h -j y -o '+logname+'  -wd '+workdirTbin+' '+runscript+' '+executable+' '+cardName+' '+mMin+' '+mMax+' '+str(seed)+' '+logdir+' '+lowerEdge+' '+upperEdge+' '+binWidth
 						if not PRINT_CMD_ONLY:
 							msg=os.popen(submitCommand).readlines()[0]		
 						else:
@@ -315,7 +316,7 @@ C
 							minMiss=float(chunks[2])
 							missingId=getRightId(mMin,binWidth,minMiss)
 							taskList=str(missingId)+'-'+str(missingId)
-							submitCommand = 'qsub  -l short=TRUE,h_vmem=2100M -t '+taskList+' -N '+jobname+'  -j y -o '+logname+'  -wd '+workdirTbin+' ./run_pwa_new_arrays.sh '+executable+' '+cardName+' '+mMin+' '+mMax+' '+str(seed)+' '+logdir+' '+lowerEdge+' '+upperEdge+' '+binWidth
+							submitCommand = 'qsub  -l short=TRUE,h_vmem=2100M -t '+taskList+' -N '+jobname+'  -j y -o '+logname+'  -wd '+workdirTbin+' '+runscript+' '+executable+' '+cardName+' '+mMin+' '+mMax+' '+str(seed)+' '+logdir+' '+lowerEdge+' '+upperEdge+' '+binWidth
 							if not PRINT_CMD_ONLY:
 								msg=os.popen(submitCommand).readlines()[0]		
 							else:

@@ -1,6 +1,7 @@
 #!/nfs/hicran/home/fkrinner/private/bin/python
 import sys
 from sys import argv
+from shutil import move
 
 # modes:'b': bootstrapped isobar, 'i': normal isobar, 'd': de-isobarred, '0' not used
 
@@ -33,14 +34,40 @@ def string_to_length(string, n=60):
 	
 #template = 'template_bootstrap.dat'
 #template = 'template_bootstrap_MC.dat'
+def sort_card_steplike(cardname):
+	"""Sorts a card in a way, that all de-isobarred waves are on the top (to simplify the mixing matrix)"""
+	lines_steplike = []
+	with open(cardname,'r') as ininin:
+		for line in ininin.readlines():
+			if ('f0_' in line or 'f2_' in line or 'rho_' in line) and line.strip().startswith('*IWAVENAM'):
+				lines_steplike.append(line)
+	with open(cardname,'r') as ininin:
+		with open(cardname+'~','w') as outoutout:
+			added_waves = False
+			for line in ininin.readlines():
+				if not line.strip().startswith("*IWAVENAM"):
+					outoutout.write(line)
+				else:
+					if not added_waves and not 'FLAT' in line: #write the de-isobarred where the first non-flat wave should be
+						for deiso_line in lines_steplike:
+							outoutout.write(deiso_line)
+						added_waves = True
+					if not ('f0_' in line or 'f2_' in line or 'rho_' in line):
+						outoutout.write(line)
+					else:
+						outoutout.write("C"+line.strip()+" line sorted to the beginning\n")
+	move(cardname+"~",cardname)
+
+
 def create_bootstrap(		name,
 				modestring,
 				template = 'template_bootstrap_MC.dat',
 				bs_path = None,
 				cardfolder = '/nfs/hicran/project/compass/analysis/fkrinner/fkrinner/trunk/MassIndependentFit/cards/'):
-
+	"""Creates a card suitable for the bootstrappig procedure"""
 	in_file = open(cardfolder+'/'+template,'r')
-	out_file= open(cardfolder+'/card_'+name+'.dat','w')
+	cardname = cardfolder+'/card_'+name+'.dat'
+	out_file= open(cardname,'w')
 
 	mode={
 		"rho1pp0pS":'u',
@@ -104,7 +131,9 @@ def create_bootstrap(		name,
 	out_file.close()
 	in_file.close()
 
-	card=open(cardfolder+"/card_"+name+".dat","r")
+	sort_card_steplike(cardname)
+
+	card=open(cardname,"r")
 	addwave=open(cardfolder+"/addwave_"+name+".dat",'w')
 	for line in card.readlines():
 		if line.strip().startswith('*IWAVENAM'):
@@ -116,6 +145,8 @@ def create_bootstrap(		name,
 	addwave.write("*ADDWAVE  '1-(2++)2- f2 pi P                                           '\n*ADDWAVE  '1-(2++)1- rho pi D                                          '")#For some reason, the second to last integral is doubled and the last one omitted, so none of them may appear in the fit.
 	addwave.close()
 	card.close()
+#	return cardname
+	return 'card_'+name+'.dat'
 
 
 if __name__ == "__main__":

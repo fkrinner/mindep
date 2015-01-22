@@ -72,7 +72,7 @@ def perform_PWA(card,			# Name of the card
 	for line in card_open.readlines():
 		if 'CARD_FOR_MONTE_CARLO' in line:
 			MC_Fit = True
-			writte(totalLog,"Fit to MC_data")
+			writte(totalLog,"Fit to MC_data\n")
 	card_open.close()
 
 	stage=startStage
@@ -358,7 +358,7 @@ def perform_PWA(card,			# Name of the card
 	writte(totalLog,'\n\n--------------------------------------------------------------------------------\nAll done.\nEnd.')
 	writte(totalLog,'   '+str(datetime.datetime.now())+'\n')
 	totalLog.close()
-	eksit(0)
+	return
 
 
 

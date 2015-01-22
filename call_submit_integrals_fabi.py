@@ -21,6 +21,7 @@ def submit_integrals(
 	"""Method to submit integral jobs to the E18 batch system"""
 #	executable='/nfs/hicran/project/compass/analysis/fkrinner/workDir/compassPWAbin_new/bin/integrator_3pic_compass_2008florian3_dfunc.static'
 	executable='/nfs/hicran/project/compass/analysis/fkrinner/workDir/compassPWAbin_big/bin/integrator_3pic_compass_2008florian3_dfunc.static'
+	runscript='/nfs/hicran/project/compass/analysis/fkrinner/fkrinner/trunk/MassIndependentFit/run_integrator_array.sh'
 	jobIDs=[]
 	if not os.path.exists(logdir):
 		os.makedirs(logdir)
@@ -60,7 +61,7 @@ def submit_integrals(
 					copyfile(cardFolder+'/'+fn,workdirTbin+'/'+fn)	
 		seed=str(random.randint(0,100000))	
 		nTasks=str(int((float(mMax)-float(mMin))/float(binWidth)+0.00001))			
-		submitCommand="qsub  -l short=TRUE,h_vmem=1100M -l hostname=!short_opteron@node2.cluster -t 1-"+nTasks+" -j y -o "+logdir+"/run_integrator_"+lowerEdge+"-"+upperEdge+".log  -wd "+target+"/"+lowerEdge+"-"+upperEdge+" ./run_integrator_array.sh "+executable+" "+target+"/"+lowerEdge+"-"+upperEdge+"/card.dat "+seed+" "+logdir+" "+lowerEdge+" "+upperEdge+" "+mMin+" "+mMax+" "+binWidth
+		submitCommand="qsub  -l short=TRUE,h_vmem=1100M -l hostname=!short_opteron@node2.cluster -t 1-"+nTasks+" -j y -o "+logdir+"/run_integrator_"+lowerEdge+"-"+upperEdge+".log  -wd "+target+"/"+lowerEdge+"-"+upperEdge+" "+runscript+" "+executable+" "+target+"/"+lowerEdge+"-"+upperEdge+"/card.dat "+seed+" "+logdir+" "+lowerEdge+" "+upperEdge+" "+mMin+" "+mMax+" "+binWidth
 #		print submitCommand
 		if not PRINT_CMD_ONLY:
 			msg=os.popen(submitCommand).readlines()[0]	#Submit jobs	
